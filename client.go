@@ -2,9 +2,9 @@ package main
 
 import (
 	"bufio"
-	"CPS831-Final/proto"
+	"CPS831-Final/service"
 
-	"flag"
+	"strings"
 	"fmt"
 	"os"
 
@@ -43,12 +43,17 @@ func connect(user *proto.User) error {
 		for {
 			msg, err := str.Recv()
 			if err != nil {
-				streamerror = fmt.Errorf("Error readinf message: %v", err)
+				streamerror = fmt.Errorf("Error reading message: %v", err)
 				break
 			}
-
-			fmt.Printf("%v : %s\n", msg.Id, msg.Content)
-			fmt.Printf("WHAT SO YOU WANT TO SAY: ")
+			if msg.Content == "exit" {
+				temp := strings.Split(msg.Id, "\n")
+				username := temp[1]
+				fmt.Printf("\n" + username + " Disconnected\n")
+				continue
+			} 
+			fmt.Printf("\n%v: %s\n", msg.Id, msg.Content)
+			fmt.Printf("\nWhat do you want to say (type \"exit\" to leave chat): ")
 		}
 	}(stream)
 	
@@ -59,21 +64,16 @@ func main() {
 	timestamp := time.Now()
 	done := make (chan int)
 
-
 	username := ""
-	fmt.Printf("WHAT IS YOUR NAME NEW PERSON??: ")
+	fmt.Printf("What is your username: ")
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-
 		username = scanner.Text()
 		break
 	}
  
-
-	name := flag.String("N", " " + username, "The name of the user")
-	flag.Parse()
 	// id not sure if it works (testing for username)
-	id := timestamp.String() + *name
+	id := timestamp.String() + "\n" + username
 	
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 	if err != nil {
@@ -83,7 +83,7 @@ func main() {
 	client = proto.NewBroadcastClient(conn)
 	user := &proto.User{
 		Id: id,
-		Name: *name,
+		Name: username,
 	}
 
 	connect(user)
@@ -92,13 +92,21 @@ func main() {
 	go func() {
 		defer wait.Done()
 		scanner := bufio.NewScanner(os.Stdin)
-		fmt.Printf("WHAT SO YOU WANT TO SAY: ")
+		fmt.Printf("\nWhat do you want to say (type \"exit\" to leave chat): ")
 		for scanner.Scan() {
 			
 			msg := &proto.Message{
 				Id: user.Id,
 				Content: scanner.Text(),
 				Timestamp: timestamp.String(),
+			}
+			if msg.Content == "exit" {
+				_, err := client.BroadcastMesssage(context.Background(),msg)
+				if err != nil{
+					fmt.Printf("Error Sending Message: %v", err)
+					break
+				}
+				os.Exit(3)
 			}
 			_, err := client.BroadcastMesssage(context.Background(),msg)
 			if err != nil{

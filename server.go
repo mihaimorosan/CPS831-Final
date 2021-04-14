@@ -1,7 +1,7 @@
 package main
 
 import (
-	"CPS831-Final/proto"
+	"CPS831-Final/service"
 	"log"
 	"net"
 	"os"
