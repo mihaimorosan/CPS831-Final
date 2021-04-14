@@ -46,10 +46,18 @@ func connect(user *proto.User) error {
 				streamerror = fmt.Errorf("Error reading message: %v", err)
 				break
 			}
+			if msg.Content == "Connected New User" {
+				temp := strings.Split(msg.Id, "\n")
+				username := temp[1]
+				fmt.Printf("\n" + username + " Connected\n")
+				fmt.Printf("\nWhat do you want to say (type \"exit\" to leave chat): ")
+				continue
+			} 
 			if msg.Content == "exit" {
 				temp := strings.Split(msg.Id, "\n")
 				username := temp[1]
 				fmt.Printf("\n" + username + " Disconnected\n")
+				fmt.Printf("\nWhat do you want to say (type \"exit\" to leave chat): ")
 				continue
 			} 
 			fmt.Printf("\n%v: %s\n", msg.Id, msg.Content)
@@ -73,7 +81,7 @@ func main() {
 	}
  
 	// id not sure if it works (testing for username)
-	id := timestamp.String() + "\n" + username
+	id := timestamp.Format("01-02-2006 15:04:05") + "\n" + username
 	
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 	if err != nil {
@@ -89,16 +97,25 @@ func main() {
 	connect(user)
 	wait.Add(1)
 
+	connected_user := &proto.Message{
+		Id: user.Id,
+		Content: "Connected New User",
+		Timestamp: timestamp.Format("01-02-2006 15:04:05"),
+	}
+	_, errorTemp := client.BroadcastMesssage(context.Background(),connected_user)
+			if errorTemp != nil{
+				fmt.Printf("Error Sending Message: %v", errorTemp)
+			}
+
 	go func() {
 		defer wait.Done()
-		scanner := bufio.NewScanner(os.Stdin)
+		scanner := bufio.NewReader(os.Stdin)
 		fmt.Printf("\nWhat do you want to say (type \"exit\" to leave chat): ")
-		for scanner.Scan() {
-			
+		for (scanner.Scan()) {
 			msg := &proto.Message{
 				Id: user.Id,
 				Content: scanner.Text(),
-				Timestamp: timestamp.String(),
+				Timestamp: timestamp.Format("01-02-2006 15:04:05"),
 			}
 			if msg.Content == "exit" {
 				_, err := client.BroadcastMesssage(context.Background(),msg)
