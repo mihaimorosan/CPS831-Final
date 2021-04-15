@@ -109,7 +109,7 @@ func main() {
 
 	go func() {
 		defer wait.Done()
-		scanner := bufio.NewReader(os.Stdin)
+		scanner := bufio.NewScanner(os.Stdin)
 		fmt.Printf("\nWhat do you want to say (type \"exit\" to leave chat): ")
 		for (scanner.Scan()) {
 			msg := &proto.Message{
